@@ -13,8 +13,13 @@ env:
 
 jobs:
   run_units_on_bench:
-    runs-on: [self-hosted, FlipperZeroTest]
+    runs-on: [ self-hosted, FlipperZeroTest ]
     steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+          ref: ${{ github.event.pull_request.head.sha }}
 
       - name: 'Flash unit tests firmware'
         id: flashing
@@ -22,7 +27,6 @@ jobs:
         timeout-minutes: 10
         run: |
           ./fbt resources firmware_latest flash LIB_DEBUG=1 FIRMWARE_APP_SET=unit_tests FORCE=1
-        working-directory: /opt/flipperzero-firmware
 
       - name: 'Wait for flipper and format ext'
         id: format_ext
@@ -30,10 +34,8 @@ jobs:
         timeout-minutes: 5
         run: |
           source scripts/toolchain/fbtenv.sh
-          python3 -m pip install future
           python3 scripts/testops.py -t=120 await_flipper
           python3 scripts/storage.py format_ext
-        working-directory: /opt/flipperzero-firmware
 
       - name: 'Copy assets and unit data, reboot and wait for flipper'
         id: copy
@@ -43,27 +45,26 @@ jobs:
           source scripts/toolchain/fbtenv.sh
           python3 scripts/testops.py -t=15 await_flipper
           python3 scripts/storage.py -f send build/latest/resources /ext
+          python3 scripts/storage.py -f send /region_data /ext/.int/.region_data
           python3 scripts/power.py reboot
           python3 scripts/testops.py -t=15 await_flipper
-        working-directory: /opt/flipperzero-firmware
 
       - name: 'Run units and validate results'
         id: run_units
         if: steps.copy.outcome == 'success'
         timeout-minutes: 7
         run: |
-          source /opt/flipperzero-firmware/scripts/toolchain/fbtenv.sh
-          python3 /opt/flipperzero-firmware/scripts/testops.py -s $ST_LINK_ID run_units
+          source scripts/toolchain/fbtenv.sh
+          python3 scripts/testops.py -s /dev/ttyACM0 run_units
 
       - name: 'Upload test results'
-        if: always() && steps.run_units.outcome != 'skipped'
+        if: failure() && steps.flashing.outcome == 'success' && steps.run_units.outcome != 'skipped'
         uses: actions/upload-artifact@v4
         with:
-          name: unit-tests-output
-          path: unit_tests_output.txt, unit_tests_stm_output.txt
+          name: unit-tests_output
+          path: unit_tests*.txt
 
       - name: 'Check GDB output'
         if: failure() && steps.flashing.outcome == 'success'
         run: |
           ./fbt gdb_trace_all LIB_DEBUG=1 FIRMWARE_APP_SET=unit_tests FORCE=1
-        working-directory: /opt/flipperzero-firmware

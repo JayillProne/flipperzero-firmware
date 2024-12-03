@@ -5,6 +5,7 @@ import serial
 import threading
 from typing import Optional
 from queue import Queue
+from datetime import datetime
 
 from flipper.app import App
 from flipper.storage import FlipperStorage
@@ -43,6 +44,9 @@ class SerialMonitor:
                 if self.serial.in_waiting:
                     line = self.serial.readline().decode('utf-8', errors='replace')
                     if line:
+                        line = re.sub(r'[\x00-\x1F\x7F-\x9F]', '', line)
+                        datetime_str = datetime.now().strftime("%Y-%m-%d %H:%M:%S,%f")
+                        line = f"{datetime_str} {line} \n"
                         self.output.append(line)
                         self.queue.put(line)
             except Exception as e:
@@ -53,10 +57,9 @@ class SerialMonitor:
         return ''.join(self.output)
 
 class Main(App):
-    # this is basic use without sub-commands, simply to reboot flipper / power it off, not meant as a full CLI wrapper
     def __init__(self, no_exit=False):
         super().__init__(no_exit)
-
+        self.test_results = None
 
     def init(self):
         self.parser.add_argument("-p", "--port", help="CDC Port", default="auto")
@@ -147,11 +150,10 @@ class Main(App):
                     if 'command not found,' in line:
                         self.logger.error(f"Command not found: {line}")
                         return 1
-                    full_output.append(line)
 
                     if "()" in line:
                         total += 1
-                        self.logger.info(f"Test completed: {line}")
+                        self.logger.debug(f"Test completed: {line}")
 
                     if not tests:
                         tests = tests_pattern.match(line)
@@ -162,10 +164,16 @@ class Main(App):
                     if not status:
                         status = status_pattern.match(line)
 
-                    # Check if we have all required data
+                    pattern = re.compile(r'(\[-]|\[\\]|\[\|]|\[/-]|\[[^\]]*\]|\x1b\[\d+D)')
+                    line_to_append = pattern.sub('', line)
+                    pattern = re.compile(r'\[3D[^\]]*')
+                    line_to_append = pattern.sub('', line_to_append)
+                    line_to_append = f"{datetime.now().strftime('%Y-%m-%d %H:%M:%S,%f')} {line_to_append}"
+
+                    full_output.append(line_to_append)
+
                     if tests and elapsed_time and leak and status:
                         all_required_found = True
-                        # Read any remaining output until prompt
                         try:
                             remaining = flipper.read.until(">: ", cut_eol=True).decode()
                             if remaining.strip():
@@ -203,7 +211,6 @@ class Main(App):
             with open(output_file, 'w') as f:
                 f.write(test_results['full_output'])
 
-
             if stm_monitor:
                 test_results['stm_output'] = stm_monitor.get_output()
                 stm_output_file = "unit_tests_stm_output.txt"
@@ -223,11 +230,9 @@ class Main(App):
             self.logger.info(
                 f"Tests ran successfully! Time elapsed {elapsed_time / 1000} seconds. Passed {total} tests."
             )
-
             return 0
 
         finally:
-            # Clean up resources
             if stm_monitor:
                 stm_monitor.stop()
             flipper.stop()
