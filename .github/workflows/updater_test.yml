@@ -1,5 +1,9 @@
 name: 'Updater test'
 on:
+  push:
+    branches:
+      - dev
+      - ssecsd/docker-runner
   pull_request:
 env:
   TARGETS: f7
@@ -51,9 +55,10 @@ jobs:
           fetch-depth: 1
           ref: ${{ steps.release_tag.outputs.tag }}
 
-      - name: 'Flash last releasцe'
+      - name: 'Flash last release'
         if: failure()
         run: |
+          python3 scripts/testops.py -t=180 await_flipper 
           ./fbt flash FORCE=1
 
       - name: 'Wait for flipper and format ext'
