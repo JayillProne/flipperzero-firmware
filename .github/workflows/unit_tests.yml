@@ -1,9 +1,6 @@
 name: 'Unit tests'
 on:
-  push:
-    branches:
-      - dev
-      - ssecsd/docker-runner
+  pull_request:
 
 env:
   TARGETS: f7

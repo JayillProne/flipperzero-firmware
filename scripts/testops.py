@@ -1,15 +1,16 @@
 #!/usr/bin/env python3
 import re
-import time
-import serial
 import threading
-from typing import Optional
-from queue import Queue
+import time
 from datetime import datetime
+from queue import Queue
+from typing import Optional
 
+import serial
 from flipper.app import App
 from flipper.storage import FlipperStorage
 from flipper.utils.cdc import resolve_port
+
 
 class SerialMonitor:
     def __init__(self, port, baudrate=230400):
@@ -42,9 +43,9 @@ class SerialMonitor:
         while self.running:
             try:
                 if self.serial.in_waiting:
-                    line = self.serial.readline().decode('utf-8', errors='replace')
+                    line = self.serial.readline().decode("utf-8", errors="replace")
                     if line:
-                        line = re.sub(r'[\x00-\x1F\x7F-\x9F]', '', line)
+                        line = re.sub(r"[\x00-\x1F\x7F-\x9F]", "", line)
                         datetime_str = datetime.now().strftime("%Y-%m-%d %H:%M:%S,%f")
                         line = f"{datetime_str} {line} \n"
                         self.output.append(line)
@@ -54,7 +55,8 @@ class SerialMonitor:
                 break
 
     def get_output(self):
-        return ''.join(self.output)
+        return "".join(self.output)
+
 
 class Main(App):
     def __init__(self, no_exit=False):
@@ -147,7 +149,7 @@ class Main(App):
                 try:
                     line = flipper.read.until("\r\n", cut_eol=True).decode()
                     self.logger.info(line)
-                    if 'command not found,' in line:
+                    if "command not found," in line:
                         self.logger.error(f"Command not found: {line}")
                         return 1
 
@@ -164,10 +166,12 @@ class Main(App):
                     if not status:
                         status = status_pattern.match(line)
 
-                    pattern = re.compile(r'(\[-]|\[\\]|\[\|]|\[/-]|\[[^\]]*\]|\x1b\[\d+D)')
-                    line_to_append = pattern.sub('', line)
-                    pattern = re.compile(r'\[3D[^\]]*')
-                    line_to_append = pattern.sub('', line_to_append)
+                    pattern = re.compile(
+                        r"(\[-]|\[\\]|\[\|]|\[/-]|\[[^\]]*\]|\x1b\[\d+D)"
+                    )
+                    line_to_append = pattern.sub("", line)
+                    pattern = re.compile(r"\[3D[^\]]*")
+                    line_to_append = pattern.sub("", line_to_append)
                     line_to_append = f"{datetime.now().strftime('%Y-%m-%d %H:%M:%S,%f')} {line_to_append}"
 
                     full_output.append(line_to_append)
@@ -197,27 +201,29 @@ class Main(App):
             elapsed_time = int(re.findall(r"\d+", elapsed_time.group(0))[0])
 
             test_results = {
-                'full_output': '\n'.join(full_output),
-                'total_tests': total,
-                'failed_tests': tests,
-                'elapsed_time_ms': elapsed_time,
-                'memory_leak_bytes': leak,
-                'status': status
+                "full_output": "\n".join(full_output),
+                "total_tests": total,
+                "failed_tests": tests,
+                "elapsed_time_ms": elapsed_time,
+                "memory_leak_bytes": leak,
+                "status": status,
             }
 
             self.test_results = test_results
 
             output_file = "unit_tests_output.txt"
-            with open(output_file, 'w') as f:
-                f.write(test_results['full_output'])
+            with open(output_file, "w") as f:
+                f.write(test_results["full_output"])
 
             if stm_monitor:
-                test_results['stm_output'] = stm_monitor.get_output()
+                test_results["stm_output"] = stm_monitor.get_output()
                 stm_output_file = "unit_tests_stm_output.txt"
-                with open(stm_output_file, 'w') as f:
-                    f.write(test_results['stm_output'])
+                with open(stm_output_file, "w") as f:
+                    f.write(test_results["stm_output"])
 
-            print(f"::notice:: Total tests: {total} Failed tests: {tests} Status: {status} Elapsed time: {elapsed_time / 1000} s Memory leak: {leak} bytes")
+            print(
+                f"::notice:: Total tests: {total} Failed tests: {tests} Status: {status} Elapsed time: {elapsed_time / 1000} s Memory leak: {leak} bytes"
+            )
 
             if tests > 0 or status != "PASSED":
                 self.logger.error(f"Got {tests} failed tests.")
@@ -236,6 +242,7 @@ class Main(App):
             if stm_monitor:
                 stm_monitor.stop()
             flipper.stop()
+
 
 if __name__ == "__main__":
     Main()()
