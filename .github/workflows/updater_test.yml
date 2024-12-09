@@ -40,14 +40,13 @@ jobs:
           
 
       - name: 'Flash last release'
-        if: success()
+        if: failure()
         run: |
           source scripts/toolchain/fbtenv.sh
           python3 scripts/testops.py -t=180 await_flipper
-          python3 scripts/fwflash.py --interface=auto --serial=$ST_LINK_ID /opt/flipperzero-firmware/firmware.bin
 
       - name: 'Wait for flipper and format ext'
-        if: success()
+        if: failure()
         run: |
           source scripts/toolchain/fbtenv.sh
           python3 scripts/testops.py -t=180 await_flipper 
