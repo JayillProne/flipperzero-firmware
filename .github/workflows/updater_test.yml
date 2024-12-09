@@ -4,11 +4,13 @@ on:
     branches:
       - dev
       - ssecsd/docker-runner
+
   pull_request:
+
 env:
   TARGETS: f7
   DEFAULT_TARGET: f7
-  FBT_TOOLCHAIN_PATH: /opt/flipperzero-firmware
+  FBT_TOOLCHAIN_PATH: /opt/
   FBT_GIT_SUBMODULE_SHALLOW: 1
 
 jobs:
@@ -27,8 +29,9 @@ jobs:
         timeout-minutes: 10
         run: |
           source scripts/toolchain/fbtenv.sh
-          ./fbt flash_usb_full FORCE=1
           python3 scripts/testops.py -t=180 await_flipper
+          ./fbt flash_usb_full FORCE=1
+          
 
       - name: 'Validating updater'
         id: second_full_flash
@@ -36,30 +39,17 @@ jobs:
         if: success()
         run: |
           source scripts/toolchain/fbtenv.sh
+          python3 scripts/testops.py -t=180 await_flipper
           ./fbt flash_usb FORCE=1
-          python3 scripts/testops.py -t=180 await_flipper 
-
-      - name: 'Get last release tag'
-        id: release_tag
-        if: failure()
-        run: |
-          echo "tag=$(git tag -l --sort=-version:refname | grep -v "rc\|RC" | head -1)" >> $GITHUB_OUTPUT
-
-      - name: 'Wipe workspace'
-        run: find ./ -mount -maxdepth 1 -exec rm -rf {} \;
-
-      - name: 'Checkout latest release'
-        uses: actions/checkout@v4
-        if: failure()
-        with:
-          fetch-depth: 1
-          ref: ${{ steps.release_tag.outputs.tag }}
+          python3 scripts/testops.py -t=180 await_flipper
+          
 
       - name: 'Flash last release'
         if: failure()
         run: |
-          python3 scripts/testops.py -t=180 await_flipper 
-          ./fbt flash FORCE=1
+          source scripts/toolchain/fbtenv.sh
+          python3 scripts/testops.py -t=180 await_flipper
+          python3 scripts/fwflash.py --interface=auto --serial=$ST_LINK_ID /opt/flipperzero-firmware/firmware.bin
 
       - name: 'Wait for flipper and format ext'
         if: failure()

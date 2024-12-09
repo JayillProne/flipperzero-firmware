@@ -8,7 +8,7 @@ on:
 env:
   TARGETS: f7
   DEFAULT_TARGET: f7
-  FBT_TOOLCHAIN_PATH: /opt/flipperzero-firmware
+  FBT_TOOLCHAIN_PATH: /opt/
   FBT_GIT_SUBMODULE_SHALLOW: 1
 
 jobs:
@@ -26,6 +26,7 @@ jobs:
         if: success()
         timeout-minutes: 10
         run: |
+          source scripts/toolchain/fbtenv.sh
           ./fbt resources firmware_latest flash LIB_DEBUG=1 FIRMWARE_APP_SET=unit_tests FORCE=1
 
       - name: 'Wait for flipper and format ext'
@@ -47,7 +48,7 @@ jobs:
           python3 scripts/storage.py -f send build/latest/resources /ext
           python3 scripts/storage.py -f send /region_data /ext/.int/.region_data
           python3 scripts/power.py reboot
-          python3 scripts/testops.py -t=15 await_flipper
+          python3 scripts/testops.py -t=30 await_flipper
 
       - name: 'Run units and validate results'
         id: run_units
