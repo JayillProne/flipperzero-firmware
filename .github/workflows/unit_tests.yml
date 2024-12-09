@@ -32,7 +32,7 @@ jobs:
         timeout-minutes: 5
         run: |
           source scripts/toolchain/fbtenv.sh
-          python3 scripts/testops.py -t=120 await_flipper
+          python3 scripts/testops.py -t=180 await_flipper
           python3 scripts/storage.py format_ext
 
       - name: 'Copy assets and unit data, reboot and wait for flipper'
