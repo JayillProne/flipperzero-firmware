@@ -26,14 +26,6 @@ jobs:
           source scripts/toolchain/fbtenv.sh
           ./fbt resources firmware_latest flash LIB_DEBUG=1 FIRMWARE_APP_SET=unit_tests FORCE=1
 
-      - name: 'Wait for flipper and format ext'
-        id: format_ext
-        if: steps.flashing.outcome == 'success'
-        timeout-minutes: 5
-        run: |
-          source scripts/toolchain/fbtenv.sh
-          python3 scripts/testops.py -t=180 await_flipper
-          python3 scripts/storage.py format_ext
 
       - name: 'Copy assets and unit data, reboot and wait for flipper'
         id: copy
